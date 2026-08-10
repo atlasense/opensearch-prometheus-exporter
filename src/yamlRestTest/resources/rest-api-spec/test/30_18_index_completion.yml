@@ -1,5 +1,11 @@
 ---
-"Index level statistics (index_completion_*)":
+"Index level statistics (index_completion_* must NOT be exposed)":
+
+  # Upstream asserted these metrics were present. This fork deliberately never
+  # requests completion stats, because computing them force-loads every
+  # completion-suggester FST onto the heap where it stays pinned for the life of
+  # the segment reader. The assertion is inverted so that reverting the opt-out,
+  # or losing it in a merge from upstream, fails the build.
 
   # -----------------------------------
   # We expect no indices in the cluster
@@ -21,19 +27,25 @@
       indices.refresh: { allow_no_indices: true }
 
   # -----------------------------------
-  # We expect index level stats present now (by default)
+  # Index level metrics are on by default, so the index is being reported on --
+  # but the completion gauge specifically must be absent.
 
   - do:
       prometheus.metrics: {}
 
+  # Sanity check: index level stats really are present for this index, so the
+  # assertion below is testing the completion opt-out and not an empty response.
   - match:
       $body: |
-        /.*
-        \# \s HELP \s opensearch_index_completion_size_bytes (\s|\w|\d)+ \n
-        \# \s TYPE \s opensearch_index_completion_size_bytes \s gauge \n
-        (
-          opensearch_index_completion_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
-          ,\} \s+ \d+\.\d+ \n?
-        ){2}
-        .*/
+        /[\s\S]*opensearch_index_indexing_index_count\{[\s\S]*index="twitter"[\s\S]*/
+
+  # [\s\S] rather than . so the negative lookahead spans the whole payload
+  # regardless of how the assertion compiles its pattern.
+  - match:
+      $body: |
+        /^(?![\s\S]*opensearch_index_completion_size_bytes)[\s\S]*$/
+
+  # The node level gauge is dropped by the same patch.
+  - match:
+      $body: |
+        /^(?![\s\S]*opensearch_indices_completion_size_bytes)[\s\S]*$/
