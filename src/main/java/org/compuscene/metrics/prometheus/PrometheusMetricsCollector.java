@@ -322,7 +322,11 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_memory_size_bytes", idx.getFieldData().getMemorySizeInBytes());
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_evictions_count", idx.getFieldData().getEvictions());
 
-            catalog.setNodeGauge(nodeInfo,"indices_completion_size_bytes", idx.getCompletion().getSizeInBytes());
+            // PATCH: completion stats are deliberately not requested (loading them pins
+            // every completion FST in heap); guard against the now-null stats object.
+            if (idx.getCompletion() != null) {
+                catalog.setNodeGauge(nodeInfo,"indices_completion_size_bytes", idx.getCompletion().getSizeInBytes());
+            }
 
             catalog.setNodeGauge(nodeInfo,"indices_segments_number", idx.getSegments().getCount());
             catalog.setNodeGauge(nodeInfo,"indices_segments_memory_bytes", idx.getSegments().getBitsetMemoryInBytes(), "bitset");
@@ -534,7 +538,11 @@ public class PrometheusMetricsCollector {
         // Percolator cache was removed in ES 5.x
         // See https://github.com/elastic/elasticsearch/commit/80fee8666ff5dd61ba29b175857cf42ce3b9eab9
 
-        catalog.setClusterGauge("index_completion_size_bytes", idx.getCompletion().getSizeInBytes(), indexName, context);
+        // PATCH: completion stats are deliberately not requested (see
+        // TransportNodePrometheusMetricsAction); guard against the null stats object.
+        if (idx.getCompletion() != null) {
+            catalog.setClusterGauge("index_completion_size_bytes", idx.getCompletion().getSizeInBytes(), indexName, context);
+        }
 
         catalog.setClusterGauge("index_segments_number", idx.getSegments().getCount(), indexName, context);
         catalog.setClusterGauge("index_segments_memory_bytes", idx.getSegments().getBitsetMemoryInBytes(), "bitset", indexName, context);
