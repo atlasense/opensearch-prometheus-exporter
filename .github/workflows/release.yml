@@ -1,0 +1,69 @@
+name: Release
+
+# Cut a release from a pushed tag. The tag name becomes the release name, and
+# puppet installs the attached zip directly from the release download URL, so the
+# tag must match the plugin version (e.g. 2.12.0.0) for that URL to resolve.
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 21 is the highest JDK the Gradle version pinned here supports, and it is
+      # already covered by the CI matrix.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build and test
+        run: ./gradlew --info build
+
+      # The tag drives the download URL puppet is configured with, so a mismatch
+      # between it and the artifact the build actually produced would publish a
+      # release nobody can install.
+      - name: Verify artifact matches the tag
+        run: |
+          set -euo pipefail
+          ZIP="build/distributions/prometheus-exporter-${GITHUB_REF_NAME}.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "::error::expected $ZIP, found:"
+            ls -la build/distributions/
+            exit 1
+          fi
+          echo "--- plugin-descriptor.properties ---"
+          unzip -p "$ZIP" plugin-descriptor.properties | tee /tmp/descriptor
+          grep -qx "version=${GITHUB_REF_NAME}" /tmp/descriptor \
+            || { echo "::error::descriptor version does not match tag ${GITHUB_REF_NAME}"; exit 1; }
+
+      # Guards against a release built from an unpatched or half-patched tree,
+      # which would look identical from the outside and silently re-pin heap.
+      - name: Verify the completion-stats opt-out is present
+        run: |
+          set -euo pipefail
+          SRC=src/main/java/org/opensearch/action/TransportNodePrometheusMetricsAction.java
+          grep -q "CommonStatsFlags.Flag.Completion, false" "$SRC" \
+            || { echo "::error::node-stats completion opt-out missing from $SRC"; exit 1; }
+          grep -q "completion(false)" "$SRC" \
+            || { echo "::error::index-stats completion opt-out missing from $SRC"; exit 1; }
+          echo "both completion opt-outs present"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            "build/distributions/prometheus-exporter-${GITHUB_REF_NAME}.zip"

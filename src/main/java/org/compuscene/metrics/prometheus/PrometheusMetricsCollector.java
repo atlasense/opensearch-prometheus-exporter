@@ -231,7 +231,8 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_percolate_queries_count", "Count of queries percolated");
         catalog.registerNodeGauge("indices_percolate_time_seconds", "Time spent while percolating");
 
-        catalog.registerNodeGauge("indices_completion_size_bytes", "Size of completion suggest statistics");
+        // completion stats are never requested (see TransportNodePrometheusMetricsAction),
+        // so the family is not registered -- otherwise it emits a HELP/TYPE header with no samples
 
         catalog.registerNodeGauge("indices_segments_number", "Current number of segments");
         catalog.registerNodeGauge("indices_segments_memory_bytes", "Memory used by segments", "type");
@@ -322,7 +323,6 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_memory_size_bytes", idx.getFieldData().getMemorySizeInBytes());
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_evictions_count", idx.getFieldData().getEvictions());
 
-            catalog.setNodeGauge(nodeInfo,"indices_completion_size_bytes", idx.getCompletion().getSizeInBytes());
 
             catalog.setNodeGauge(nodeInfo,"indices_segments_number", idx.getSegments().getCount());
             catalog.setNodeGauge(nodeInfo,"indices_segments_memory_bytes", idx.getSegments().getBitsetMemoryInBytes(), "bitset");
@@ -417,7 +417,7 @@ public class PrometheusMetricsCollector {
         // Percolator cache was removed in ES 5.x
         // See https://github.com/elastic/elasticsearch/commit/80fee8666ff5dd61ba29b175857cf42ce3b9eab9
 
-        catalog.registerClusterGauge("index_completion_size_bytes", "Size of completion suggest statistics", "index", "context");
+        // not registered, same rationale as indices_completion_size_bytes above
 
         catalog.registerClusterGauge("index_segments_number", "Current number of segments", "index", "context");
         catalog.registerClusterGauge("index_segments_memory_bytes", "Memory used by segments", "type", "index", "context");
@@ -534,7 +534,6 @@ public class PrometheusMetricsCollector {
         // Percolator cache was removed in ES 5.x
         // See https://github.com/elastic/elasticsearch/commit/80fee8666ff5dd61ba29b175857cf42ce3b9eab9
 
-        catalog.setClusterGauge("index_completion_size_bytes", idx.getCompletion().getSizeInBytes(), indexName, context);
 
         catalog.setClusterGauge("index_segments_number", idx.getSegments().getCount(), indexName, context);
         catalog.setClusterGauge("index_segments_memory_bytes", idx.getSegments().getBitsetMemoryInBytes(), "bitset", indexName, context);

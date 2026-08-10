@@ -30,6 +30,7 @@ import org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
@@ -130,6 +131,11 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
             this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+            // PATCH: never request completion stats — computing them force-loads every
+            // completion-suggester FST into heap, where it stays pinned for the life of
+            // the segment reader.
+            this.nodesStatsRequest.indices(
+                new CommonStatsFlags().all().set(CommonStatsFlags.Flag.Completion, false));
 
             // Indices stats request is not "node-specific", it does not support any "_local" notion
             // it is broad-casted to all cluster nodes.
@@ -137,6 +143,11 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 IndicesStatsRequest indicesStatsRequest = new IndicesStatsRequest();
                 indicesStatsRequest.indices(prometheusSettings.getPrometheusSelectedIndices());
                 indicesStatsRequest.indicesOptions(prometheusSettings.getIndicesOptions());
+                // PATCH: same rationale as the node-stats request above — the
+                // index-level stats request defaults to all stats, which includes
+                // completion and would force-load the FSTs regardless of the
+                // node-stats fix.
+                indicesStatsRequest.completion(false);
                 this.indicesStatsRequest = indicesStatsRequest;
             } else {
                 this.indicesStatsRequest = null;
