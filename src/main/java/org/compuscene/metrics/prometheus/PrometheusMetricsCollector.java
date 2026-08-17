@@ -322,8 +322,6 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_memory_size_bytes", idx.getFieldData().getMemorySizeInBytes());
             catalog.setNodeGauge(nodeInfo,"indices_fielddata_evictions_count", idx.getFieldData().getEvictions());
 
-            catalog.setNodeGauge(nodeInfo,"indices_completion_size_bytes", idx.getCompletion().getSizeInBytes());
-
             catalog.setNodeGauge(nodeInfo,"indices_segments_number", idx.getSegments().getCount());
             catalog.setNodeGauge(nodeInfo,"indices_segments_memory_bytes", idx.getSegments().getBitsetMemoryInBytes(), "bitset");
             catalog.setNodeGauge(nodeInfo,"indices_segments_memory_bytes", idx.getSegments().getIndexWriterMemoryInBytes(), "indexwriter");

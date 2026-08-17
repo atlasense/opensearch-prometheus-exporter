@@ -43,6 +43,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
+import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
+
 
 /**
  * Transport action class for Prometheus Exporter plugin.
@@ -129,7 +131,9 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             // We want to get only the most minimal static info from local node (cluster name, node name and nodeID).
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
-            this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+	    this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+	    // Reporting completion size forces every completion FST onto heap (see CompletionStatsCache).
+            this.nodesStatsRequest.indices(new CommonStatsFlags().all().set(CommonStatsFlags.Flag.Completion, false));
 
             // Indices stats request is not "node-specific", it does not support any "_local" notion
             // it is broad-casted to all cluster nodes.
