@@ -131,8 +131,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             // We want to get only the most minimal static info from local node (cluster name, node name and nodeID).
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
-	    this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
-	    // Reporting completion size forces every completion FST onto heap (see CompletionStatsCache).
+            this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+            // Reporting completion size forces every completion FST onto heap (see CompletionStatsCache).
             this.nodesStatsRequest.indices(new CommonStatsFlags().all().set(CommonStatsFlags.Flag.Completion, false));
 
             // Indices stats request is not "node-specific", it does not support any "_local" notion
